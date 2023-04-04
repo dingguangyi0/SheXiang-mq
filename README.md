@@ -26,7 +26,7 @@ Shexiang-mq 主要由 Producer、Consumer、MessageQueue、 三部分组成，�
 负责消费消息，一般是后台系统负责异步消费。启动消费者后,消费者会启动监听 MessageQueue队列。
 
 ### 4 主题（Topic）
-表示一类消息的集合，每个主题包含若干条消息，每条消息只能属于一个主题，是RocketMQ进行消息订阅的基本单位。
+表示一类消息的集合，每个主题包含若干条消息，每条消息只能属于一个主题
 
 ## Examples & Demos
 
