@@ -34,7 +34,7 @@ Shexiang-mq 主要由 Producer、Consumer、MessageQueue、 三部分组成，�
 package main
 
 import (
-	m "SheXiang-mq"
+	m "github.com/dingguangyi0/SheXiang-mq"
 	"math/rand"
 	"strconv"
 	"time"
