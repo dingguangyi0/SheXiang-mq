@@ -10,7 +10,7 @@ Shexiang-mq 重复利用go 高并发特性的本地mq
 ## Install
 
 ```sh
-
+go get -u github.com/dingguangyi0/SheXiang-mq
 ```
 
 

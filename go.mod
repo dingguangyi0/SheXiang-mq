@@ -1,4 +1,4 @@
-module SheXiang-mq
+module github.com/dingguangyi0/SheXiang-mq
 
 go 1.20
 
