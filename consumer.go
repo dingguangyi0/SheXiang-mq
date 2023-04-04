@@ -16,6 +16,8 @@ type (
 		// Shutdown Stop the consumer with the given parameters and return immediately
 		Shutdown()
 
+		ShutdownCallback(callback func())
+
 		// Subscribe with the given parameters and return immediately
 		Subscribe(topic string) bool
 
@@ -40,33 +42,23 @@ type (
 		ServiceState  ServiceState
 		Listeners     map[string]func(message Message) ConsumeConcurrentlyStatus
 		topicPubInfos []*TopicPublishInfo
-		mqFactory     *mqFactory
+		mqFactory     *MqFactory
 		pool          *ants.Pool
 		subscribes    []string
 	}
 
 	ConsumerConfig struct {
-		PoolSize         int
 		ConsumerGroup    string
 		MessageListeners map[string] /*topicName*/ func(message Message) ConsumeConcurrentlyStatus
 	}
 )
 
-func newConsumer(config *ConsumerConfig, factory *mqFactory) Consumer {
-	options := func(opts *ants.Options) {
-		opts.ExpiryDuration = 10 * time.Second
-		opts.DisablePurge = false
-	}
-	pool, err := ants.NewPool(config.PoolSize, options)
-	if err != nil {
-		return nil
-	}
+func newConsumer(config *ConsumerConfig, factory *MqFactory) Consumer {
 	d := DefaultConsumer{
 		mqFactory:     factory,
 		ServiceState:  CreateJust,
 		ConsumerGroup: config.ConsumerGroup,
 		Listeners:     make(map[string]func(message Message) ConsumeConcurrentlyStatus),
-		pool:          pool,
 	}
 	return &d
 }
@@ -76,11 +68,22 @@ func (c *DefaultConsumer) Start() error {
 	case CreateJust:
 		c.ServiceState = StartFailed
 
-		c.checkConfig()
+		err := c.checkConfig()
+		if err != nil {
+			return err
+		}
 
 		c.mqFactory.registerConsumer(c.ConsumerGroup, c)
 
-		err := c.processing()
+		pool, err := c.newPool()
+		//线程池初始化失败
+		if err != nil {
+			return errors.New("create consumer failed for new pool error " + err.Error())
+		}
+		//初始化线程池
+		c.pool = pool
+
+		err = c.processing()
 
 		if err != nil {
 			fmt.Println("Failed to")
@@ -98,6 +101,9 @@ func (c *DefaultConsumer) Start() error {
 }
 
 func (c *DefaultConsumer) Shutdown() {
+	c.ShutdownCallback(func() {})
+}
+func (c *DefaultConsumer) ShutdownCallback(callback func()) {
 	switch c.ServiceState {
 	case CreateJust:
 	case Running:
@@ -111,6 +117,7 @@ func (c *DefaultConsumer) Shutdown() {
 					c.ServiceState = ShutdownAlready
 					ticker.Stop()
 					c.pool.Release()
+					callback()
 					return
 				}
 			}
@@ -146,10 +153,10 @@ func (c *DefaultConsumer) processingTopicQueue(info *TopicPublishInfo) error {
 	if f == nil {
 		return nil
 	}
-	for i := 0; i < info.ToPicConfig.MessageQueueLength; i++ {
+	c.mqFactory.monitorListener.InitByTopic(info)
+	for i := 0; i < info.ToPicConfig.getMessageQueueLength(); i++ {
 		//初始化监控
-		c.mqFactory.monitorListener.InitByTopic(info)
-		func(queue MessageQueue, config *ToPicConfig) {
+		func(queue *MessageQueue, config *ToPicConfig) {
 			err := pool.Submit(func() {
 				for m := range queue.Message {
 					func(m Message, config *ToPicConfig) {
@@ -190,6 +197,7 @@ func (c *DefaultConsumer) processing() error {
 }
 
 func (c *DefaultConsumer) Unsubscribe(topics ...string) {
+	c.checkState()
 	for _, topic := range topics {
 		info := c.mqFactory.TopicPublishInfoTable[topic]
 		if info != nil {
@@ -205,8 +213,42 @@ func (c *DefaultConsumer) Unsubscribe(topics ...string) {
 }
 
 func (c *DefaultConsumer) RegisterMessageListener(topic string, listener func(message Message) ConsumeConcurrentlyStatus) {
+	c.Subscribe(topic)
 	c.Listeners[topic] = listener
 }
 
-func (c *DefaultConsumer) checkConfig() {
+func (c *DefaultConsumer) checkConfig() error {
+	if len(c.topicPubInfos) == 0 {
+
+	}
+	return nil
+}
+
+func (c *DefaultConsumer) Callback(f func()) {
+	f()
+}
+
+func (c *DefaultConsumer) newPool() (*ants.Pool, error) {
+	poolSize := 5
+	for _, config := range c.topicPubInfos {
+		poolSize += config.ToPicConfig.MessageQueueLength
+	}
+
+	options := func(opts *ants.Options) {
+		opts.ExpiryDuration = 10 * time.Second
+		opts.DisablePurge = false
+	}
+
+	pool, err := ants.NewPool(poolSize, options)
+	if err != nil {
+		return nil, err
+	}
+	return pool, nil
+}
+
+func (c *DefaultConsumer) checkState() bool {
+	if c.ServiceState == Running {
+		return true
+	}
+	return false
 }

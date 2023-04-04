@@ -1,5 +1,5 @@
 # Shexiang-mq
-Shexiang-mq 重复利用go 高并发特性的本地mq
+Shexiang-mq 充分利用go 高并发特性的本地mq
 ## 目录
 
 - [Install](#install)

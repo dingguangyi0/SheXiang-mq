@@ -1,5 +1,16 @@
 package SheXiang_mq
 
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	TopicEmpty = errors.New("please specify a topic to send messages ")
+
+	ServiceStateNoStart = errors.New("producer service start createJust for not send messages")
+)
+
 type (
 	//Producer Message
 	Producer interface {
@@ -11,10 +22,9 @@ type (
 	}
 
 	DefaultProducer struct {
-		config        ProducerConfig
 		ProducerGroup string
 		ServiceState  ServiceState
-		mqFactory     *mqFactory
+		MqFactory     *MqFactory
 	}
 
 	ProducerConfig struct {
@@ -22,9 +32,9 @@ type (
 	}
 )
 
-func newProducer(producerGroup string, factory *mqFactory) Producer {
+func newProducer(producerGroup string, factory *MqFactory) Producer {
 	d := DefaultProducer{
-		mqFactory:     factory,
+		MqFactory:     factory,
 		ServiceState:  CreateJust,
 		ProducerGroup: producerGroup,
 	}
@@ -38,7 +48,7 @@ func (p *DefaultProducer) Start() error {
 
 		p.checkConfig()
 
-		p.mqFactory.registerProducer(p.ProducerGroup, p)
+		p.MqFactory.registerProducer(p.ProducerGroup, p)
 
 		p.ServiceState = Running
 	case Running:
@@ -54,7 +64,7 @@ func (p *DefaultProducer) Shutdown() {
 	switch p.ServiceState {
 	case CreateJust:
 	case Running:
-		p.mqFactory.unregisterProducer(p.ProducerGroup)
+		p.MqFactory.unregisterProducer(p.ProducerGroup)
 		p.ServiceState = ShutdownAlready
 	case StartFailed:
 	case ShutdownAlready:
@@ -63,23 +73,36 @@ func (p *DefaultProducer) Shutdown() {
 }
 
 func (p *DefaultProducer) Send(msg Message) error {
-	p.checkMessage(msg)
-	topicPublishInfo := p.mqFactory.tryToFindTopicPublishInfo(msg.Topic)
+	if p.ServiceState != Running {
+		fmt.Println("waiting for service to start...")
+		return ServiceStateNoStart
+	}
+	err := p.checkMessage(msg)
+	if err != nil {
+		return err
+	}
+	topicPublishInfo := p.MqFactory.tryToFindTopicPublishInfo(msg.Topic)
 	if topicPublishInfo != nil {
-		queue := p.selectOneMessageQueue(topicPublishInfo)
+		queue := topicPublishInfo.selectOneMessageQueue()
 		queue.Message <- msg
 	}
 	return nil
 }
 
 func (p *DefaultProducer) checkConfig() {
-
+	if p.ProducerGroup == "" {
+		fmt.Println("Please specify a producer group name for the producer group to connect to.")
+	}
 }
 
-func (p *DefaultProducer) checkMessage(msg Message) {
-
+func (p *DefaultProducer) checkMessage(msg Message) error {
+	if msg.Topic == "" {
+		fmt.Println("Please specify a topic to send messages ")
+		return TopicEmpty
+	}
+	return nil
 }
 
 func (p *DefaultProducer) selectOneMessageQueue(info *TopicPublishInfo) *MessageQueue {
-	return p.mqFactory.selectOneMessageQueue(info)
+	return p.MqFactory.selectOneMessageQueue(info)
 }

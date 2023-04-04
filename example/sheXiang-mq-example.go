@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	m "github.com/dingguangyi0/SheXiang-mq"
 	"math/rand"
 	"strconv"
@@ -10,31 +11,23 @@ import (
 func main() {
 	//init mq config file
 	config := &m.MqConfig{
-		//Can be omitted
-		ProducerConfig: &m.ProducerConfig{
-			ProducerGroupName: "ProductName",
-		},
 		ConsumerConfig: &m.ConsumerConfig{
-			PoolSize:      10,
-			ConsumerGroup: "ConsumerGroup",
 			MessageListeners: map[string]func(message m.Message) m.ConsumeConcurrentlyStatus{
 				"topic-test": func(message m.Message) m.ConsumeConcurrentlyStatus {
 					duration := time.Duration(rand.Int63n(5))
 					time.Sleep(duration * time.Second)
 					return m.ConsumeSuccess
 				},
+				"topic-test2": func(message m.Message) m.ConsumeConcurrentlyStatus {
+					duration := time.Duration(rand.Int63n(5))
+					time.Sleep(duration * time.Second)
+					return m.ConsumeSuccess
+				},
 			},
 		},
-		//Can be omitted,Created by default ConsumerConfig Topic MessageQueueLength 5 MessageCapLength 5
-		ToPicConfigs: []*m.ToPicConfig{
-			{
-				TopicName:          "topic-test",
-				MessageQueueLength: 2,
-				MessageCapLength:   2,
-			},
-		},
+		Selector: m.Random,
 	}
-	mq := config.New()
+	mq, _ := config.NewStart()
 	consumer := mq.Consumer
 	producer := mq.Producer
 	listener := mq.MonitorListener
@@ -49,13 +42,26 @@ func main() {
 				return
 			}
 		}(i)
+		func(i int) {
+			err := producer.Send(m.Message{
+				Topic: "topic-test2",
+				Body:  []byte(strconv.Itoa(i)),
+			})
+			if err != nil {
+				return
+			}
+		}(i)
 	}
+
 	//发送完毕取消订阅
-	consumer.Unsubscribe("topic-test")
+	consumer.Unsubscribe("topic-test", "topic-test2")
 	//生产者关闭
 	producer.Shutdown()
 	//消费者关闭
-	consumer.Shutdown()
+	consumer.ShutdownCallback(func() {
+		fmt.Println("消费者关闭")
+	})
+	//执行回调
 	//关闭监控
 	listener.CloseMonitor()
 }
