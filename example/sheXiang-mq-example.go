@@ -1,7 +1,7 @@
 package main
 
 import (
-	m "SheXiang-mq"
+	m "github.com/dingguangyi0/SheXiang-mq"
 	"math/rand"
 	"strconv"
 	"time"
