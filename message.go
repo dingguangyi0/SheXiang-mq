@@ -52,6 +52,13 @@ func (topic *TopicPublishInfo) TopicBlockageMessageQueueCount() int64 {
 func (topic *TopicPublishInfo) selectOneMessageQueue() *MessageQueue {
 	return topic.MessageQueueSelector.Select(topic.messageQueues)
 }
+func (topic *TopicPublishInfo) removeTopic() {
+	topic.oneClose.Do(func() {
+		for _, queue := range topic.messageQueues {
+			close(queue.Message)
+		}
+	})
+}
 
 func NewToPicConfig(topicName string) *ToPicConfig {
 	return &ToPicConfig{

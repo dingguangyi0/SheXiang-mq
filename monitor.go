@@ -3,6 +3,7 @@ package SheXiang_mq
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -87,14 +88,24 @@ func (monitor *Monitor) add(topic string, now time.Time) {
 }
 
 func (monitor *Monitor) Info() {
+	var keys []string
 	monitor.msgs.Range(func(key, value any) bool {
 		msg := value.(Msg)
-		sprintf := fmt.Sprintf("Topic: %v,容量: %v monitor: %v", key, msg.toPicConfig.TopicBlockageMessageQueueCount(), msg.info())
-		fmt.Println(sprintf)
+		keys = append(keys, msg.toPicConfig.ToPicConfig.TopicName)
 		return true
 	})
-	fmt.Println("--------------------------------")
+	sort.Strings(keys)
+	for _, key := range keys {
+		value, ok := monitor.msgs.Load(key)
+		if ok {
+			msg := value.(Msg)
+			keys = append(keys, msg.toPicConfig.ToPicConfig.TopicName)
+			sprintf := fmt.Sprintf("Topic: %v,容量: %v monitor: %v", key, msg.toPicConfig.TopicBlockageMessageQueueCount(), msg.info())
+			fmt.Println(sprintf)
+		}
+	}
 
+	fmt.Println("================================================================")
 }
 
 func (monitor *Monitor) TurnMonitor() {

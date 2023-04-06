@@ -23,7 +23,7 @@ func (s *SelectMessageQueueByRandom) Select(messageQueues []*MessageQueue) *Mess
 // Select 通过轮询选择消息队列
 func (s *SelectMessageQueueByPolling) Select(messageQueues []*MessageQueue) *MessageQueue {
 	point := atomic.LoadInt32(s.pollingPoint)
-	queue := messageQueues[rand.Intn(int(point))]
+	queue := messageQueues[point]
 	atomic.AddInt32(&point, 1)
 	if point > int32(len(messageQueues)-1) {
 		atomic.CompareAndSwapInt32(&point, point, 0)
