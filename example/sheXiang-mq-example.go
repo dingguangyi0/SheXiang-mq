@@ -15,18 +15,14 @@ func main() {
 			PoolSize: 10,
 			MessageListeners: map[string]func(message m.Message) m.ConsumeConcurrentlyStatus{
 				"topic-test": func(message m.Message) m.ConsumeConcurrentlyStatus {
+					fmt.Println("Consumed topic-test")
 					duration := time.Duration(rand.Int63n(5))
-					time.Sleep(30 * time.Second)
-					fmt.Println("Consumed topic-tes")
-
 					time.Sleep(duration * time.Second)
 					return m.ConsumeSuccess
 				},
 				"topic-test2": func(message m.Message) m.ConsumeConcurrentlyStatus {
-					duration := time.Duration(rand.Int63n(5))
-					time.Sleep(30 * time.Second)
 					fmt.Println("Consumed topic-test2")
-
+					duration := time.Duration(rand.Int63n(5))
 					time.Sleep(duration * time.Second)
 					return m.ConsumeSuccess
 				},
