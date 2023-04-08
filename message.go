@@ -101,7 +101,7 @@ func (topic *ToPicConfig) getMessageCapLength() int {
 }
 
 func newToPicPool(topic *ToPicConfig) *ants.Pool {
-	fmt.Printf("newPool topic %v \n", topic.TopicName)
+	//fmt.Printf("newPool topic %v \n", topic.TopicName)
 	poolSize := topic.getMessageQueueLength() * topic.getMessageCapLength()
 	pool, err := ants.NewPool(poolSize)
 	if err != nil {
