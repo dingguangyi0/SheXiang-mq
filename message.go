@@ -1,6 +1,8 @@
 package SheXiang_mq
 
 import (
+	"fmt"
+	"github.com/panjf2000/ants/v2"
 	"sync"
 	"sync/atomic"
 )
@@ -31,6 +33,10 @@ type (
 		MessageCapLength int
 		//Topic 队列选择器 //默认随机
 		Selector MsgQueueSelector
+		// 可用线程数
+		PoolSize int
+		//pool
+		pool *ants.Pool
 	}
 
 	TopicPublishInfo struct {
@@ -61,11 +67,24 @@ func (topic *TopicPublishInfo) removeTopic() {
 }
 
 func NewToPicConfig(topicName string) *ToPicConfig {
-	return &ToPicConfig{
+	topic := &ToPicConfig{
 		TopicName:          topicName,
 		MessageQueueLength: DefaultMessageQueueLength,
 		MessageCapLength:   DefaultMessageCapLength,
+		PoolSize:           DefaultPoolSize,
 	}
+	topic.pool = newToPicPool(topic)
+	return topic
+}
+func NewToPicConfigByPoolSize(topicName string, DefaultTopicPoolSize int) *ToPicConfig {
+	topic := &ToPicConfig{
+		TopicName:          topicName,
+		MessageQueueLength: DefaultMessageQueueLength,
+		MessageCapLength:   DefaultMessageCapLength,
+		PoolSize:           DefaultTopicPoolSize,
+	}
+	topic.pool = newToPicPool(topic)
+	return topic
 }
 
 func (topic *ToPicConfig) getMessageQueueLength() int {
@@ -79,4 +98,15 @@ func (topic *ToPicConfig) getMessageCapLength() int {
 		return DefaultMessageCapLength
 	}
 	return topic.MessageCapLength
+}
+
+func newToPicPool(topic *ToPicConfig) *ants.Pool {
+	fmt.Printf("newPool topic %v \n", topic.TopicName)
+	poolSize := topic.getMessageQueueLength() * topic.getMessageCapLength()
+	pool, err := ants.NewPool(poolSize)
+	if err != nil {
+		fmt.Printf("init topic [%v] config Pool fail \n", topic.TopicName)
+		return nil
+	}
+	return pool
 }

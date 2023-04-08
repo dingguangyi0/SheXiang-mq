@@ -12,14 +12,21 @@ func main() {
 	//init mq config file
 	config := &m.MqConfig{
 		ConsumerConfig: &m.ConsumerConfig{
+			PoolSize: 10,
 			MessageListeners: map[string]func(message m.Message) m.ConsumeConcurrentlyStatus{
 				"topic-test": func(message m.Message) m.ConsumeConcurrentlyStatus {
 					duration := time.Duration(rand.Int63n(5))
+					time.Sleep(30 * time.Second)
+					fmt.Println("Consumed topic-tes")
+
 					time.Sleep(duration * time.Second)
 					return m.ConsumeSuccess
 				},
 				"topic-test2": func(message m.Message) m.ConsumeConcurrentlyStatus {
 					duration := time.Duration(rand.Int63n(5))
+					time.Sleep(30 * time.Second)
+					fmt.Println("Consumed topic-test2")
+
 					time.Sleep(duration * time.Second)
 					return m.ConsumeSuccess
 				},
@@ -32,7 +39,7 @@ func main() {
 	producer := mq.Producer
 	listener := mq.MonitorListener
 	listener.TurnMonitor()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1; i++ {
 		func(i int) {
 			err := producer.Send(m.Message{
 				Topic: "topic-test",
@@ -52,6 +59,7 @@ func main() {
 			}
 		}(i)
 	}
+	fmt.Println("Produ")
 
 	//发送完毕取消订阅
 	consumer.Unsubscribe("topic-test", "topic-test2")

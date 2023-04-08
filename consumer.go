@@ -115,14 +115,25 @@ func (c *DefaultConsumer) ShutdownCallback(callback func()) {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Printf("Running for %d Waiting for %d \n", pool.Running(), pool.Waiting())
+				//fmt.Printf("Shutdown DefaultConsumer Running %v Waiting %v \n", pool.Running(), pool.Waiting())
 				if pool.Running() == 0 && pool.Waiting() == 0 {
-					c.mqFactory.unregisterConsumer(c.ConsumerGroup)
-					c.ServiceState = ShutdownAlready
-					ticker.Stop()
-					c.pool.Release()
-					callback()
-					return
+					tag := true
+					for _, info := range c.mqFactory.TopicPublishInfoTable {
+						p := info.ToPicConfig.pool
+						//fmt.Printf("topic info closed R %v W %v \n", pool.Running(), pool.Waiting())
+						if p.Running() != 0 || p.Waiting() != 0 {
+							pool.Release()
+							tag = false
+						}
+					}
+					if tag {
+						c.mqFactory.unregisterConsumer(c.ConsumerGroup)
+						c.ServiceState = ShutdownAlready
+						ticker.Stop()
+						c.pool.Release()
+						callback()
+						return
+					}
 				}
 			}
 		}
@@ -157,15 +168,19 @@ func (c *DefaultConsumer) processingTopicQueue(info *TopicPublishInfo) error {
 	if f == nil {
 		return nil
 	}
-	c.mqFactory.monitorListener.InitByTopic(info)
+	if info.ToPicConfig.pool == nil {
+		lock.Lock()
+		info.ToPicConfig.pool = newToPicPool(info.ToPicConfig)
+		lock.Unlock()
+	}
 	for i := 0; i < info.ToPicConfig.getMessageQueueLength(); i++ {
 		//初始化监控
 		func(queue *MessageQueue, config *ToPicConfig) {
 			err := pool.Submit(func() {
 				for m := range queue.Message {
 					func(m Message, config *ToPicConfig) {
-						err := pool.Submit(func() {
-							c.mqFactory.monitorListener.surround(f, m)
+						err := config.pool.Submit(func() {
+							c.mqFactory.monitorListener.Surround(f, m)
 						})
 						if err != nil {
 							fmt.Println(err)
@@ -188,7 +203,6 @@ func (c *DefaultConsumer) processingTopicQueue2(info *TopicPublishInfo) error {
 	if f == nil {
 		return nil
 	}
-	c.mqFactory.monitorListener.InitByTopic(info)
 	for i := 0; i < info.ToPicConfig.getMessageQueueLength(); i++ {
 		//初始化监控
 		func(queue *MessageQueue, config *ToPicConfig) {
@@ -201,11 +215,10 @@ func (c *DefaultConsumer) processingTopicQueue2(info *TopicPublishInfo) error {
 							fmt.Println("topic to send message end of channel", queue.QueueId)
 							close(queue.Message)
 						}
-
 						if ok {
 							func(m Message, config *ToPicConfig) {
 								err := pool.Submit(func() {
-									c.mqFactory.monitorListener.surround(f, m)
+									c.mqFactory.monitorListener.Surround(f, m)
 								})
 								if err != nil {
 									fmt.Println(err)
@@ -247,7 +260,6 @@ func (c *DefaultConsumer) Unsubscribe(topics ...string) {
 	for _, topic := range topics {
 		info := c.mqFactory.TopicPublishInfoTable[topic]
 		if info != nil {
-			fmt.Println("unsubscribe topic ", topic, " from ")
 			info.removeTopic()
 			delete(c.Listeners, topic)
 		}
@@ -271,12 +283,7 @@ func (c *DefaultConsumer) Callback(f func()) {
 }
 
 func (c *DefaultConsumer) newPool() (*ants.Pool, error) {
-	poolSize := 0
-	if c.config.PoolSize == 0 {
-		poolSize = 100
-	} else {
-		poolSize = c.config.PoolSize
-	}
+	poolSize := c.poolSize()
 	poolSize += c.countMessageQueueLength()
 	options := func(opts *ants.Options) {
 		opts.ExpiryDuration = 10 * time.Second
@@ -288,6 +295,13 @@ func (c *DefaultConsumer) newPool() (*ants.Pool, error) {
 		return nil, err
 	}
 	return pool, nil
+}
+
+func (c *DefaultConsumer) poolSize() int {
+	if c.config.PoolSize == 0 {
+		return DefaultPoolSize
+	}
+	return c.config.PoolSize
 }
 
 func (c *DefaultConsumer) countMessageQueueLength() int {

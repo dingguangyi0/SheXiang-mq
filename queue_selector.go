@@ -10,7 +10,7 @@ type (
 	SelectMessageQueueByRandom  struct{}
 	SelectMessageQueueByPolling struct {
 		//轮询点位
-		pollingPoint *int32
+		pollingPoint int32
 	}
 )
 
@@ -22,12 +22,12 @@ func (s *SelectMessageQueueByRandom) Select(messageQueues []*MessageQueue) *Mess
 
 // Select 通过轮询选择消息队列
 func (s *SelectMessageQueueByPolling) Select(messageQueues []*MessageQueue) *MessageQueue {
-	point := atomic.LoadInt32(s.pollingPoint)
-	queue := messageQueues[point]
-	atomic.AddInt32(&point, 1)
-	if point > int32(len(messageQueues)-1) {
-		atomic.CompareAndSwapInt32(&point, point, 0)
+	if atomic.LoadInt32(&s.pollingPoint) > int32(len(messageQueues)-1) {
+		atomic.CompareAndSwapInt32(&s.pollingPoint, atomic.LoadInt32(&s.pollingPoint), 0)
 	}
+	point := atomic.LoadInt32(&s.pollingPoint)
+	queue := messageQueues[point]
+	atomic.AddInt32(&s.pollingPoint, 1)
 	return queue
 }
 
@@ -36,8 +36,7 @@ func MessageQueueSelectorCreate(selector MsgQueueSelector) MessageQueueSelector 
 	case Random:
 		return &SelectMessageQueueByRandom{}
 	case Polling:
-		var polling int32 = 0
-		return &SelectMessageQueueByPolling{pollingPoint: &polling}
+		return &SelectMessageQueueByPolling{}
 	default:
 		return &SelectMessageQueueByRandom{}
 	}

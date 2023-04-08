@@ -1,8 +1,14 @@
 package SheXiang_mq
 
+import "github.com/panjf2000/ants/v2"
+
 type ServiceState int
 type ConsumeConcurrentlyStatus int
 type MsgQueueSelector int
+
+type Pool struct {
+	Pool ants.Pool
+}
 
 const (
 	// CreateJust Service just created,not start
@@ -28,8 +34,9 @@ const (
 )
 
 const (
-	DefaultMessageQueueLength = 50
-	DefaultMessageCapLength   = 20
+	DefaultMessageQueueLength = 5
+	DefaultMessageCapLength   = 1
+	DefaultPoolSize           = 5
 )
 
 const (

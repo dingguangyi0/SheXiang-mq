@@ -16,10 +16,11 @@ var (
 
 type MqConfig struct {
 	//Topic 队列选择器 //默认随机 ToPicConfig 不配置 默认去mq
-	Selector       MsgQueueSelector
-	ProducerConfig *ProducerConfig
-	ConsumerConfig *ConsumerConfig
-	ToPicConfigs   []*ToPicConfig
+	Selector             MsgQueueSelector
+	ProducerConfig       *ProducerConfig
+	ConsumerConfig       *ConsumerConfig
+	ToPicConfigs         []*ToPicConfig
+	DefaultTopicPoolSize int
 }
 
 type Mq struct {
@@ -100,7 +101,7 @@ func checkConfig(mq *MqConfig) error {
 
 	if len(mq.ToPicConfigs) == 0 {
 		for topic, _ := range mq.ConsumerConfig.MessageListeners {
-			mq.ToPicConfigs = append(mq.ToPicConfigs, NewToPicConfig(topic))
+			mq.ToPicConfigs = append(mq.ToPicConfigs, NewToPicConfigByPoolSize(topic, mq.DefaultTopicPoolSize))
 		}
 	}
 	return nil

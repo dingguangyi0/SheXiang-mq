@@ -2,13 +2,11 @@ package SheXiang_mq
 
 type (
 	MonitorListener interface {
-		Init(topic []*TopicPublishInfo)
+		Surround(messageListener func(message Message) ConsumeConcurrentlyStatus, msg Message)
 
-		InitByTopic(topicInfo *TopicPublishInfo)
+		Print()
 
-		surround(messageListener func(message Message) ConsumeConcurrentlyStatus, msg Message)
-
-		Info()
+		Info() map[string]*Msg
 
 		TurnMonitor()
 

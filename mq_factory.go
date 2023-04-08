@@ -33,10 +33,8 @@ func Instance(config *FactoryConfig) *MqFactory {
 				producerTable:         make(map[string] /*ProducerGroup*/ Producer),
 				consumerTable:         make(map[string] /*ConsumerGroup*/ Consumer),
 				TopicPublishInfoTable: createTopicPublishInfoTable(config.ToPicConfigs),
-				monitorListener: &Monitor{
-					ctx: make(chan int),
-				},
 			}
+			factoryInstance.monitorListener = NewMonitor(factoryInstance)
 		}
 	}
 	return factoryInstance
