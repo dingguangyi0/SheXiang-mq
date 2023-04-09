@@ -110,6 +110,7 @@ func (m *Monitor) TurnMonitor() {
 				m.Print()
 			case <-m.ctx:
 				fmt.Println("Monitor Turned closed")
+				return
 			}
 		}
 	}()
