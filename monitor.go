@@ -137,7 +137,7 @@ func max(o, n int64) int64 {
 }
 
 func min(o, n int64) int64 {
-	if o > n {
+	if o > n || o == -1 {
 		return n
 	}
 	return o
