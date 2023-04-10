@@ -77,7 +77,7 @@ func (m *Monitor) add(topic string, now time.Time) {
 	atomic.AddInt64(&m.msgs[topic].TimeCount, int64(since))
 
 	atomic.CompareAndSwapInt64(&m.msgs[topic].MaxTime, m.msgs[topic].MaxTime, max(m.msgs[topic].MaxTime, int64(since)))
-	atomic.CompareAndSwapInt64(&m.msgs[topic].MinTime, m.msgs[topic].MinTime, max(m.msgs[topic].MinTime, int64(since)))
+	atomic.CompareAndSwapInt64(&m.msgs[topic].MinTime, m.msgs[topic].MinTime, min(m.msgs[topic].MinTime, int64(since)))
 	atomic.CompareAndSwapInt64(&m.msgs[topic].LastTaskTime, m.msgs[topic].LastTaskTime, int64(time.Since(m.msgs[topic].StartTime)))
 	atomic.CompareAndSwapInt64(&m.msgs[topic].Running, m.msgs[topic].Running, int64(pool.Running()))
 	atomic.CompareAndSwapInt64(&m.msgs[topic].Waiting, m.msgs[topic].Running, int64(pool.Waiting()))
